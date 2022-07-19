@@ -6,10 +6,15 @@
 namespace App\Http\Controllers\Admin;
 
 use App\Events\ContentCreated;
+use App\Events\ContentCreateShow;
 use App\Events\ContentCreating;
 use App\Events\ContentDeleted;
+use App\Events\ContentDeleting;
+use App\Events\ContentEditShow;
+use App\Events\ContentListShow;
 use App\Events\ContentUpdated;
 use App\Events\ContentUpdating;
+use App\Foundation\ViewData;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Admin\ContentRequest;
 use App\Model\Admin\Content;
@@ -26,6 +31,7 @@ use App\Model\Admin\Tag;
 use App\Model\Admin\ContentTag;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Facades\Auth;
 
 class ContentController extends Controller
 {
@@ -58,15 +64,20 @@ class ContentController extends Controller
         }
 
         $this->breadcrumb[] = ['title' => $this->entity->name . '内容列表', 'url' => ''];
-        Content::$listField = [
-            'title' => '标题'
-        ];
+        Content::$listField = array_merge(EntityFieldRepository::listDisplayFields($entity), Content::$listField);
+        $this->setSearchField($entity);
+        event(new ContentListShow($entity));
         return view('admin.content.index', [
             'breadcrumb' => $this->breadcrumb,
             'entity' => $entity,
             'entityModel' => $this->entity,
             'autoMenu' => EntityRepository::systemMenu()
         ]);
+    }
+
+    private function setSearchField(int $entity)
+    {
+        Content::$searchField = array_merge(EntityFieldRepository::searchableFields($entity), Content::$searchField);
     }
 
     /**
@@ -87,6 +98,7 @@ class ContentController extends Controller
         $this->formNames = array_merge(['created_at', 'light_sort_fields'], EntityFieldRepository::getFields($entity));
         $condition = $request->only($this->formNames);
 
+        $this->setSearchField($entity);
         $data = ContentRepository::list($entity, $perPage, $condition);
 
         return $data;
@@ -101,12 +113,15 @@ class ContentController extends Controller
         $this->breadcrumb[] = ['title' => "新增{$this->entity->name}内容", 'url' => ''];
         $view = $this->getAddOrEditViewPath();
 
+        $viewData = new ViewData();
+        event(new ContentCreateShow($this->entity, $viewData));
         return view($view, [
             'breadcrumb' => $this->breadcrumb,
             'entity' => $entity,
             'entityModel' => $this->entity,
             'entityFields' => EntityFieldRepository::getByEntityId($entity),
-            'autoMenu' => EntityRepository::systemMenu()
+            'autoMenu' => EntityRepository::systemMenu(),
+            'viewData' => $viewData,
         ]);
     }
 
@@ -137,9 +152,9 @@ class ContentController extends Controller
             $inputTagsField = EntityFieldRepository::getInputTagsField($entity);
             $tags = null;
             if ($inputTagsField) {
-                $tags = $request->post($inputTagsField->name);
+                $tags = json_decode($request->post($inputTagsField->name), true);
             }
-            if (is_string($tags) && $tags = json_decode($tags, true)) {
+            if (is_array($tags)) {
                 foreach ($tags as $v) {
                     $tag = Tag::firstOrCreate(['name' => $v['value']]);
                     ContentTag::firstOrCreate(
@@ -175,10 +190,17 @@ class ContentController extends Controller
      */
     public function edit($entity, $id)
     {
+        $result = $this->useUserDefinedEditHandler($entity, $id);
+        if (!is_null($result)) {
+            return $result;
+        }
+
         $this->breadcrumb[] = ['title' => "编辑{$this->entity->name}内容", 'url' => ''];
         $view = $this->getAddOrEditViewPath();
         $model = ContentRepository::find($id);
 
+        $viewData = new ViewData();
+        event(new ContentEditShow($this->entity, $model, $viewData));
         return view($view, [
             'id' => $id,
             'model' => $model,
@@ -186,7 +208,8 @@ class ContentController extends Controller
             'entity' => $entity,
             'entityModel' => $this->entity,
             'entityFields' => EntityFieldRepository::getByEntityId($entity),
-            'autoMenu' => EntityRepository::systemMenu()
+            'autoMenu' => EntityRepository::systemMenu(),
+            'viewData' => $viewData,
         ]);
     }
 
@@ -216,9 +239,9 @@ class ContentController extends Controller
             $inputTagsField = EntityFieldRepository::getInputTagsField($entity);
             $tags = null;
             if ($inputTagsField && intval($inputTagsField->is_edit) === EntityField::EDIT_ENABLE) {
-                $tags = $request->post($inputTagsField->name);
+                $tags = json_decode($request->post($inputTagsField->name), true);
             }
-            if (is_string($tags) && $tags = json_decode($tags, true)) {
+            if (is_array($tags)) {
                 $tagIds = [];
                 foreach ($tags as $v) {
                     $tag = Tag::firstOrCreate(['name' => $v['value']]);
@@ -226,7 +249,10 @@ class ContentController extends Controller
                     $tagIds[] = $tag->id;
                 }
                 if ($tagIds) {
-                    ContentTag::where('entity_id', $entity)->where('content_id', $id)->whereNotIn('tag_id', $tagIds)->delete();
+                    ContentTag::where('entity_id', $entity)
+                        ->where('content_id', $id)
+                        ->whereNotIn('tag_id', $tagIds)
+                        ->delete();
                 }
             }
 
@@ -258,7 +284,13 @@ class ContentController extends Controller
     {
         try {
             $content = ContentRepository::findOrFail($id);
+            event(new ContentDeleting(collect([$content]), $this->entity));
+
+            DB::beginTransaction();
             ContentRepository::delete($id);
+            ContentTag::query()->where('content_id', $id)->where('entity_id', $entity)->delete();
+            DB::commit();
+
             event(new ContentDeleted(collect([$content]), $this->entity));
 
             return [
@@ -298,8 +330,28 @@ class ContentController extends Controller
         $message = '';
         switch ($type) {
             case 'delete':
+                $password = $request->post('password');
+                if (!$password) {
+                    return [
+                        'code' => 1,
+                        'msg' => '密码不能为空',
+                    ];
+                }
+                if (!Auth::guard('admin')->attempt(['id' => $request->user()->id, 'password' => $password])) {
+                    return [
+                        'code' => 2,
+                        'msg' => '密码错误',
+                    ];
+                }
+
                 $contents = ContentRepository::model()->whereIn('id', $ids)->get();
+                event(new ContentDeleting($contents, $this->entity));
+
+                DB::beginTransaction();
                 ContentRepository::model()->whereIn('id', $ids)->delete();
+                ContentTag::query()->whereIn('content_id', $ids)->where('entity_id', $this->entity->id)->delete();
+                DB::commit();
+
                 event(new ContentDeleted($contents, $this->entity));
                 break;
             default:
@@ -318,8 +370,20 @@ class ContentController extends Controller
         $entityRequestClass = '\\App\\Http\\Requests\\Admin\\Entity\\' .
             Str::ucfirst(Str::singular($this->entity->table_name)) . 'Request';
         if (class_exists($entityRequestClass)) {
-            $entityRequestClass::capture()->setContainer(app())->setRedirector(app()->make('redirect'))->validateResolved();
+            $entityRequestClass::capture()
+                ->setContainer(app())
+                ->setRedirector(app()->make('redirect'))
+                ->validateResolved();
         }
+    }
+
+    protected function useUserDefinedEditHandler($entity, $id)
+    {
+        $entityControllerClass = $this->userDefinedHandlerExists('edit');
+        if ($entityControllerClass === false) {
+            return null;
+        }
+        return call_user_func([new $entityControllerClass, 'edit'], $entity, $id);
     }
 
     protected function useUserDefinedSaveHandler($request, $entity)

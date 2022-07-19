@@ -9,6 +9,7 @@ use App\Http\Controllers\Controller;
 use App\Http\Requests\Admin\EntityRequest;
 use App\Repository\Admin\EntityRepository;
 use App\Model\Admin\Entity;
+use Illuminate\Database\Eloquent\ModelNotFoundException;
 use Illuminate\Database\QueryException;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
@@ -20,7 +21,7 @@ use App\Exceptions\CreateTableException;
 class EntityController extends Controller
 {
     protected $formNames = [
-        'name', 'table_name', 'description', 'is_internal', 'enable_comment', 'is_show_content_manage'
+        'name', 'table_name', 'description', 'is_internal', 'enable_comment', 'is_show_content_manage', 'sort'
     ];
 
     public function __construct()
@@ -221,6 +222,39 @@ class EntityController extends Controller
             return [
                 'code' => 5,
                 'msg' => $e->getMessage(),
+            ];
+        }
+    }
+
+    /**
+     * 模型管理-模型字段快捷更新接口
+     *
+     * @param Request $request
+     * @param int $id
+     * @return array
+     */
+    public function listUpdate(Request $request, int $id): array
+    {
+        try {
+            $entity = Entity::query()->findOrFail($id);
+
+            $data = $request->only(
+                ['sort', 'is_internal', 'is_show_content_manage', 'enable_comment']
+            );
+            foreach ($data as $key => $value) {
+                $entity->$key = $value;
+            }
+            $entity->save();
+            return [
+                'code' => 0,
+                'msg' => '保存成功',
+                'redirect' => true
+            ];
+        } catch (ModelNotFoundException $e) {
+            return [
+                'code' => 2,
+                'msg' => '保存失败：记录不存在',
+                'redirect' => false
             ];
         }
     }

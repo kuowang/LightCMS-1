@@ -80,13 +80,11 @@ return [
         'inputTags' => '标签输入框',
         'upload' => '图片上传（单图）',
         'uploadMulti' => '图片上传（多图）',
-        'uploadVideo' => '视频上传',
-        'uploadAttachment' => '附件上传',
         'datetime' => '日期时间',
         'date' => '日期',
         'reference_category' => '引用分类数据',
         'reference_admin_user' => '引用管理员数据',
-        'grade' => '评分',
+        'jsonEditor' => 'JSON编辑器',
     ],
 
     // NEditor相关
@@ -108,7 +106,8 @@ return [
                 ".rar", ".zip", ".tar", ".gz", ".7z", ".bz2", ".cab", ".iso",
                 ".doc", ".docx", ".xls", ".xlsx", ".ppt", ".pptx", ".pdf", ".txt", ".md", ".xml"
             ], /* 上传文件格式显示 */
-        ]
+        ],
+        'catchRemoteImageEnable' => false, // 是否启用粘贴内容时图片自动保存到本地
     ],
     'image_upload' => [
         'driver' => 'local', // local 表示上传到本地服务器。上传到其它服务器请设置自定义名称
@@ -132,5 +131,8 @@ return [
             'client_secret' => env('WECHAT_CLIENT_SECRET', ''),
             'redirect' => env('WECHAT_REDIRECT', ''),
         ],
-    ]
+    ],
+
+    // 后台登录验证码
+    'enable_captcha' => true,
 ];

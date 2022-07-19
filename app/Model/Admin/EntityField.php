@@ -5,6 +5,8 @@
 
 namespace App\Model\Admin;
 
+use Illuminate\Database\Eloquent\Relations\BelongsTo;
+
 class EntityField extends Model
 {
     const SHOW_ENABLE = 1;
@@ -19,9 +21,15 @@ class EntityField extends Model
     const REQUIRED_ENABLE = 1;
     const REQUIRED_DISABLE = 0;
 
+    const SHOW_LIST = 1;
+    const SHOW_NOT_LIST = 0;
+
+    const SEARCH_ENABLE = 1;
+    const SEARCH_DISABLE = 0;
+
     protected $guarded = [];
 
-    public function entity()
+    public function entity(): BelongsTo
     {
         return $this->belongsTo('App\Model\Admin\Entity', 'entity_id');
     }
@@ -36,7 +44,9 @@ class EntityField extends Model
             'title' => '行内展示', 'sort' => true, 'templet' => '#isShowInlineTemplet', 'event' => 'showInlineEvent'
         ],
         'is_show' => ['title' => '显示', 'templet' => '#isShowTemplet', 'event' => 'showEvent'],
-        'order' => ['title' => '排序', 'sort' => true, 'edit' => true, 'width' => 80],
+        'is_list_display' => ['title' => '列表显示', 'templet' => '#isShowList', 'event' => 'showListEvent'],
+        'order' => ['title' => '表单排序', 'sort' => true, 'edit' => true, 'width' => 100],
+        'list_sort' => ['title' => '列表排序', 'sort' => true, 'edit' => true, 'width' => 100],
     ];
 
     public static $searchField = [

@@ -44,14 +44,15 @@ class CommentController extends BaseController
                 'msg' => '评论内容过长',
             ];
         }
-        $pid = (int) $request->post('pid', 0);
+        $pid = (int) $request->post('pid');
         if ($pid < 0) {
             return [
                 'code' => 7,
                 'msg' => 'invalid pid',
             ];
         }
-        if ($pid > 0 && !($parentComment = \App\Repository\Admin\CommentRepository::find($pid))) {
+        $parentComment = \App\Repository\Admin\CommentRepository::find($pid);
+        if ($pid > 0 && !$parentComment) {
             return [
                 'code' => 8,
                 'msg' => '引用评论不存在',

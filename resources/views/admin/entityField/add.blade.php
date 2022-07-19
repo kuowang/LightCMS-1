@@ -83,6 +83,17 @@
                         <div class="layui-form-mid layui-word-aux"><span style="color:#FF5722">下拉选择（远程搜索）、下拉选择（多选，远程搜索）只支持行内展示</span></div>
                     </div>
                     <div class="layui-form-item">
+                        <label class="layui-form-label">引用分类数据模型</label>
+                        <div class="layui-input-inline" style="width: 400px">
+                            <select name="category_entity_id" lay-verify="required" lay-filter="category_entity_id">
+                                @foreach(\App\Repository\Admin\EntityRepository::all() as $v)
+                                    <option value="{{ $v->id }}" @if(isset($model) && $model->category_entity_id == $v->id) selected @endif>{{ $v->name }}</option>
+                                @endforeach
+                            </select>
+                        </div>
+                        <div class="layui-form-mid layui-word-aux"><span style="color:#FF5722">表单类型为引用分类数据时可用</span></div>
+                    </div>
+                    <div class="layui-form-item">
                         <label class="layui-form-label">表单备注</label>
                         <div class="layui-input-block">
                             <input type="text" name="form_comment" autocomplete="off" class="layui-input" value="{{ $model->form_comment ?? ''  }}">
@@ -91,7 +102,7 @@
                     <div class="layui-form-item">
                         <label class="layui-form-label">表单参数</label>
                         <div class="layui-input-block">
-                            <textarea name="form_params" class="layui-textarea" placeholder="对于表单类型为单选框、多选框、下拉选择的，需在此配置对应参数。参数格式为：key=value，多个以换行分隔。也可以填写自定义的函数名称，函数名称需以getFormItemsFrom开头，返回值需与前述数据格式一致。对于下拉选择远程搜索表单类型、短文本（input，自动完成）表单类型，需在此填写后端接口URL地址，接口返回数据格式可参考文档说明。对于评分表单类型，可在此设置可评分的最大值。">{{ $model->form_params ?? ''  }}</textarea>
+                            <textarea name="form_params" class="layui-textarea" placeholder="对于表单类型为单选框、多选框、下拉选择、引用其它模型数据的，需在此配置对应参数。参数格式为：key=value，多个以换行分隔。也可以填写自定义的函数名称，函数名称需以getFormItemsFrom开头，返回值需与前述数据格式一致。对于下拉选择远程搜索表单类型、短文本（input，自动完成）表单类型，需在此填写后端接口URL地址，接口返回数据格式可参考文档说明。">{{ $model->form_params ?? ''  }}</textarea>
                         </div>
                     </div>
                     <div class="layui-form-item">
@@ -105,7 +116,14 @@
                         <div class="layui-input-inline">
                             <input type="number" name="order" required  lay-verify="required" autocomplete="off" class="layui-input" value="{{ $model->order ?? 77  }}">
                         </div>
-                        <div class="layui-form-mid layui-word-aux">值越小排序越靠前</div>
+                        <div class="layui-form-mid layui-word-aux">新增/编辑页展示顺序，值越小排序越靠前</div>
+                    </div>
+                    <div class="layui-form-item">
+                        <label class="layui-form-label">列表排序</label>
+                        <div class="layui-input-inline">
+                            <input type="number" name="list_sort" required  lay-verify="required" autocomplete="off" class="layui-input" value="{{ $model->list_sort ?? 77  }}">
+                        </div>
+                        <div class="layui-form-mid layui-word-aux">列表页展示顺序，值越小排序越靠前</div>
                     </div>
                     <div class="layui-form-item">
                         <div class="layui-inline">
@@ -135,6 +153,41 @@
                                 <input type="checkbox" name="is_required" lay-skin="switch" lay-text="是|否" value="1" @if(!isset($model) || isset($model) && $model->is_required == App\Model\Admin\EntityField::REQUIRED_ENABLE) checked @endif>
                             </div>
                         </div>
+
+                        <div class="layui-inline">
+                            <label class="layui-form-label">列表展示</label>
+                            <div class="layui-input-inline">
+                                <input type="checkbox" name="is_list_display" lay-skin="switch" lay-text="是|否" value="1" @if(isset($model) && $model->is_list_display == App\Model\Admin\EntityField::SHOW_LIST) checked @endif>
+                            </div>
+                        </div>
+                    </div>
+                    <hr>
+                    <div class="layui-inline">
+                        <label class="layui-form-label">启用搜索</label>
+                        <div class="layui-input-inline">
+                            <input type="checkbox" name="is_enable_search" lay-skin="switch" lay-text="是|否" value="1" @if(isset($model) && $model->is_enable_search == App\Model\Admin\EntityField::SEARCH_ENABLE) checked @endif>
+                        </div>
+                    </div>
+                    <div class="layui-form-item">
+                        <label class="layui-form-label">搜索方式</label>
+                        <div class="layui-input-inline" style="width: 400px">
+                            <select name="search_type" lay-verify="required" lay-filter="form_type">
+                                <option value="like" @if(isset($model) && $model->search_type == 'like') selected @endif>模糊查询</option>
+                                <option value="=" @if(isset($model) && $model->search_type == '=') selected @endif>精确查询</option>
+                            </select>
+                        </div>
+                        <div class="layui-form-mid layui-word-aux">模糊查询即为数据库的Like查询</div>
+                    </div>
+                    <div class="layui-form-item">
+                        <label class="layui-form-label">搜索表单</label>
+                        <div class="layui-input-inline" style="width: 400px">
+                            <select name="show_type" lay-verify="required" lay-filter="form_type">
+                                <option value="input" @if(isset($model) && $model->show_type == 'input') selected @endif>输入值（input）</option>
+                                <option value="select" @if(isset($model) && $model->show_type == 'select') selected @endif>下拉选择（select）</option>
+                                <option value="datetime" @if(isset($model) && $model->show_type == 'datetime') selected @endif>日期时间范围</option>
+                            </select>
+                        </div>
+                        <div class="layui-form-mid layui-word-aux">下拉选择的选项数据来源于表单参数值。对于表单类型为引用分类数据，系统自动处理，无需单独设置</div>
                     </div>
                 <div class="layui-form-item">
                     <div class="layui-input-block">

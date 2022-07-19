@@ -10,12 +10,18 @@ use App\Http\Requests\Admin\CategoryRequest;
 use App\Repository\Admin\CategoryRepository;
 use Illuminate\Database\QueryException;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Str;
 use Illuminate\View\View;
 
 class CategoryController extends Controller
 {
-    protected $formNames = ['name', 'pid', 'order', 'title', 'keywords', 'description', 'model_id'];
+    protected $formNames = [
+        'name', 'pid', 'order', 'title', 'keywords',
+        'description', 'model_id', 'identity', 'is_nav', 'url'
+    ];
+
+    protected array $formDefaultValue = ['is_nav' => 0];
 
     public function __construct()
     {
@@ -79,7 +85,8 @@ class CategoryController extends Controller
     public function save(CategoryRequest $request)
     {
         try {
-            CategoryRepository::add($request->only($this->formNames));
+            CategoryRepository::add(array_merge($this->formDefaultValue, $request->only($this->formNames)));
+            Cache::forget('category:tree');
             return [
                 'code' => 0,
                 'msg' => '新增成功',
@@ -123,9 +130,10 @@ class CategoryController extends Controller
      */
     public function update(CategoryRequest $request, $id)
     {
-        $data = $request->only($this->formNames);
+        $data = array_merge($this->formDefaultValue, $request->only($this->formNames));
         try {
             CategoryRepository::update($id, $data);
+            Cache::forget('category:tree');
             return [
                 'code' => 0,
                 'msg' => '编辑成功',

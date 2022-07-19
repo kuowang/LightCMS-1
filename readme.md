@@ -1,10 +1,10 @@
 # LightCMS
-[![Scrutinizer Code Quality](https://scrutinizer-ci.com/g/eddy8/lightCMS/badges/quality-score.png?b=master)](https://scrutinizer-ci.com/g/eddy8/lightCMS/?branch=master)    [![StyleCI](https://github.styleci.io/repos/175428969/shield?branch=master)](https://github.styleci.io/repos/175428969)    [![Build Status](https://www.travis-ci.org/eddy8/lightCMS.svg?branch=master)](https://www.travis-ci.org/eddy8/lightCMS)    [![PHP Version](https://img.shields.io/badge/php-%3E%3D7.2-8892BF.svg)](http://www.php.net/)
+[![Scrutinizer Code Quality](https://scrutinizer-ci.com/g/eddy8/lightCMS/badges/quality-score.png?b=master)](https://scrutinizer-ci.com/g/eddy8/lightCMS/?branch=master)    [![StyleCI](https://github.styleci.io/repos/175428969/shield?branch=master)](https://github.styleci.io/repos/175428969)    [![Build Status](https://www.travis-ci.org/eddy8/lightCMS.svg?branch=master)](https://www.travis-ci.org/eddy8/lightCMS)    [![PHP Version](https://img.shields.io/badge/php-%3E%3D8.0.2-8892BF.svg)](http://www.php.net/)
 
 ## 项目简介
 `lightCMS`是一个轻量级的`CMS`系统，也可以作为一个通用的后台管理框架使用。`lightCMS`集成了用户管理、权限管理、日志管理、菜单管理等后台管理框架的通用功能，同时也提供模型管理、分类管理等`CMS`系统中常用的功能。`lightCMS`的**代码一键生成**功能可以快速对特定模型生成增删改查代码，极大提高开发效率。
 
-`lightCMS`基于`Laravel 6.x`开发，前端框架基于`layui`。
+`lightCMS`基于`Laravel 9.x`开发，前端框架基于`layui`。
 
 演示站点：[LightCMS Demo](http://lightcms.bituier.com/admin/login)。登录信息：admin/admin。请勿存储/删除重要数据，数据库会定时重置。
 
@@ -14,9 +14,10 @@
 
 分支名称 | Laravel版本 | 维护中 | 备注
 :-: | :-: | :-: | :-:
-master    |   6.x | 是 | 建议使用
-8.x    |   8.x | 是 |
-7.x    |   7.x | 是 |
+9.x    |   9.x | 是 | 建议使用
+8.x    |   8.x | 是 | 建议使用
+7.x    |   7.x | 否 |
+master |   6.x | 否 |
 5.5    |   5.5 | 否 |
 
 ## 功能点一览
@@ -45,9 +46,9 @@ master    |   6.x | 是 | 建议使用
 ![系统管理](https://user-images.githubusercontent.com/2555476/54804599-0ea20e00-4caf-11e9-8d10-526aca358916.png)
 
 ## 系统环境
-`linux/windows & nginx/apache/iis & mysql 5.5+ & php 7.2+`
+`linux/windows & nginx/apache/iis & mysql 5.5+ & php 8.0.2+`
 
-* PHP >= 7.2.0
+* PHP >= 8.0.2
 * OpenSSL PHP Extension
 * PDO PHP Extension
 * Mbstring PHP Extension
@@ -66,8 +67,8 @@ master    |   6.x | 是 | 建议使用
 首先请确保系统已安装好[composer](https://getcomposer.org/)。国内用户建议先[设置 composer 镜像](https://developer.aliyun.com/composer)，避免安装过程缓慢。
 ```bash
 cd /data/www
-git clone git_repository_url
-cd lightCMS
+git clone git@github.com:eddy8/LightCMS.git
+cd LightCMS
 composer install
 ```
 ### 系统配置并初始化
@@ -92,16 +93,23 @@ server {
     server_name light.com;
     root /data/www/lightCMS/public;
     index index.php index.html index.htm;
+    
+    add_header X-Frame-Options "SAMEORIGIN";
 
     location / {
         try_files $uri $uri/ /index.php?$query_string;
     }
+    
+    location ~* \.(txt|doc|pdf|rar|gz|zip|docx|exe|xlsx|ppt|pptx)$ {
+        add_header Content-Disposition Attachment;
+        add_header X-Content-Type-Options nosniff;
+    }
 
-    location = /index.php {
+    location ~ \.php$ {
         fastcgi_pass 127.0.0.1:9000;
         fastcgi_index index.php;
         fastcgi_param SCRIPT_FILENAME $document_root$fastcgi_script_name;
-        #不同配置对应不同的环境配置文件。比如此处应用会加载.env.pro文件，默认不配置会加载.env文件。此处可根据项目需要自行配制。
+        #不同配置对应不同的环境配置文件。比如此处应用会加载.env.pro文件，默认不配置会加载.env文件。此处可根据项目需要自行配置。
         #fastcgi_param   APP_ENV pro;
         include fastcgi_params;
     }
@@ -153,8 +161,6 @@ $siteName = config('light_config.SITE_NAME');
 ## 模型管理
 `lightCMS`支持在后台直接创建模型，并可对模型的表字段进行自定义设置。设置完模型字段后，就不需要做其它工作了，模型的增删改查功能系统已经内置。
 
-> 小提示：如果需要对单独的模型进行权限控制，可以在模型管理页面点击`添加默认菜单`，系统会自动建立好相应模型的相关菜单项。
-
 这里说明下模型的表单验证及后端的保存和更新处理。如果有自定义表单验证需求，只需在`app/Http/Request/Admin/Entity`目录下创建模型的表单请求验证类即可。类名的命名规则：**模型名+Request**。例如`User`模型对应的表单请求验证类为`UserRequest`。
 
 如果想自定义模型的新增/编辑前端模板，只需在`app/resources/views/admin/content`目录下创建模板文件即可。模板文件的命名需遵循如下命名规则：**模型名_add.blade.php**。例如`User`模型对应的模板文件名为`user_add.blade.php`。
@@ -169,7 +175,12 @@ App\Events\ContentCreating    |   Illuminate\Http\Request $request, App\Model\Ad
 App\Events\ContentCreated    |   App\Model\Admin\Content $content, App\Model\Admin\Entity $entity |  新增内容后  |
 App\Events\ContentUpdating    |   Illuminate\Http\Request $request, App\Model\Admin\Entity $entity |  更新内容前  |
 App\Events\ContentUpdated    |   Array $id, App\Model\Admin\Entity $entity |  更新内容后  | $id 为更新内容的 ID 合集
+App\Events\ContentDeleting    |   Illuminate\Support\Collection $contents, App\Model\Admin\Entity $entity |  删除内容前  | $contents 为被删除内容的 App\Model\Admin\Content 对象合集
 App\Events\ContentDeleted    |   Illuminate\Support\Collection $contents, App\Model\Admin\Entity $entity |  删除内容后  | $contents 为被删除内容的 App\Model\Admin\Content 对象合集
+App\Events\ContentCreateShow    |   App\Model\Admin\Entity $entity, App\Foundation\ViewData $viewData |  新增内容表单展示前  | 通过调用$viewData的addCss、addJs、addTemplate方法，注入自定义css文件、js文件、模板至新增表单中
+App\Events\ContentEditShow    |   App\Model\Admin\Entity $entity, Illuminate\Database\Eloquent\Model $model, App\Foundation\ViewData $viewData |  更新内容表单展示前  | 通过调用$viewData的addCss、addJs、addTemplate方法，注入自定义css文件、js文件、模板至更新表单中
+App\Events\ContentListShow    |   int $entityId |  内容列表页展示前  | 一般用于自定义内容列表页展示字段、搜索字段等
+App\Events\ContentListDataReturning    |   int $entityId, Illuminate\Contracts\Pagination\Paginator $data |  内容列表页数据接口返回内容前  | 一般用于自定义内容列表页数据接口返回数据
 
 ### 模型字段表单类型相关说明
 对于支持远程搜索的`select`表单类型，后端 API 搜索接口需返回的数据格式如下所示。code为0时, 表示正常, 反之异常。
@@ -273,7 +284,23 @@ App\Events\ContentDeleted    |   Illuminate\Support\Collection $contents, App\Mo
     ];
 ```
 
+### 按钮字段（$btnField）配置说明
+通过配置按钮字段，可以很方便的在模型的列表页自定义操作按钮。如下是一个示例配置：
+```php
+    public static $btnField = [
+        [
+            'title' => 'Google',
+            'description' => '搜索引擎',
+            'url' => 'https://www.google.com',
+            'target' => '_blank',
+            'class' => '',
+        ],
+    ];
+```
+
 > 小提示：如果你是自定义模型，建议自定义模型继承`App\Model\Admin\Model`模型，方便对上述配置项进行自定义。
+
+> 通过监听特定的事件来配置上述属性，可以方便的自定义各种展示效果。
 
 ## 系统日志
 `lightCMS`集成了一套简单的日志系统，默认情况下记录后台的所有操作相关信息，具体实现可以参考`Log`中间件。
@@ -289,7 +316,7 @@ php artisan queue:work
 ```
 
 ## 代码一键生成
-对于一个普通的模型，管理后台通常有增删改查相关的业务需求。如果系统模型管理自带的增删改查功能无法满足你的个性化需求，你可以使用一键生成代码功能。`lightCMS`拥有一键生成相关代码的能力，在建好模型的数据库表结构后，可以使用如下`artisan`命令生成相关代码：
+对于一个普通的模型，管理后台通常有增删改查相关的业务需求。`lightCMS`拥有一键生成相关代码的能力，在建好模型的数据库表结构后，可以使用如下`artisan`命令生成相关代码：
 ```bash
 # config 为模型名称 配置 为模型中文名称
 php artisan light:basic config 配置
@@ -337,9 +364,9 @@ LightCMS中图片默认上传到本地服务器。如果有自定义需求，比
 }
 ```
 
-## 系统核心函数、方法说明
+## 系统核心函数、方法等说明
 做这个说明的主要目的是让开发者了解一些核心功能，方便自定义各类功能开发。毕竟框架是不可能代劳所有事情滴^_
-
+***
 方法名称：App\Repository\Admin\CategoryRepository::tree()
 
 功能说明：
@@ -349,15 +376,51 @@ LightCMS中图片默认上传到本地服务器。如果有自定义需求，比
 ![tree](https://user-images.githubusercontent.com/2555476/62991339-d7acde80-be81-11e9-9811-9d4d27e01f07.png)
 
 此数据结构基本包含了分类的所有结构化信息。相关字段的含义也比较清楚，此处只对`path`字段做下说明：该字段是指当前分类的所有上级分类链，这样可以很方便的知道某个分类的所有父级分类。比如图中的`test`分类的path字段值为`[1, 2]`，那么很容易的知道它的父级分类是：游戏 射击
+***
+异常：`App\Exceptions\InvalidAppDataException`
+
+应用场景：在应用程序中抛出该异常，框架会自动跳转到信息提示页面，提示内容为自定义异常内容。一般用于应用运行时错误的页面提示。
+
+***
+`App\Repository\Admin\CategoryRepository`类中与分类操作相关的方法：
+```
+/**
+ * 获取指定层级的所有分类，根分类层级为 0
+ *
+ * @param int $level
+ * @param null $tree
+ * @return Collection
+ */
+public static function levelCategories(int $level = 0, $tree = null): Collection
+
+/**
+ * 获取指定分类的所有叶子节点分类，$categoryId 为 0 时获取所有叶子节点分类
+ *
+ * @param int $categoryId
+ * @param null $tree
+ * @return Collection
+ */
+public static function leafCategories(int $categoryId = 0, $tree = null): Collection
+
+/**
+ * 获取指定分类的所有父级分类，没有父分类时返回空数组
+ *
+ * @param int $categoryId
+ * @param null $tree
+ * @return array
+ */
+public static function parentCategories(int $categoryId, $tree = null): array
+```
 
 ## 前台相关
 ### 用户注册登录
 `LightCMS`集成了一套简单的用户注册登录系统，支持微信、QQ、微博三方登录。三方登录相关配置请参考`config/light.php`。
 
-## TODO
-* 模版管理+模版标签
-
-## 完善中。。。
-
 ## 说明
 有问题可以提 issue ，为项目贡献代码可以提 pull request
+
+## Project supported by JetBrains
+
+Many thanks to Jetbrains for kindly providing a license for me to work on this and other open-source projects.
+
+[![](https://resources.jetbrains.com/storage/products/company/brand/logos/jb_beam.svg)](https://www.jetbrains.com/?from=https://github.com/eddy8)

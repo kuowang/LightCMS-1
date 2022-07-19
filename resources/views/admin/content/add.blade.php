@@ -1,6 +1,14 @@
 @extends('admin.base')
 @section('css')
     <link rel="stylesheet" type="text/css" href="/public/vendor/zoom/zoom.css">
+    @foreach($viewData->getCss() as $css)
+    <link rel="stylesheet" type="text/css" href="{{$css}}">
+    @endforeach
+@endsection
+@section('head-js')
+    @foreach($viewData->getJs() as $js)
+    <script src="{{$js}}"></script>
+    @endforeach
 @endsection
 @section('content')
     <style>
@@ -149,7 +157,7 @@
                                                 <label class="layui-form-label">{{ $inlineField->form_name }}</label>
                                                 <div class="layui-input-inline" style="z-index: {{99999 - ($inlineField->order + $inlineField->id)}}">
                                                     <select name="{{ $inlineField->name }}" @if($inlineField->is_required == \App\Model\Admin\EntityField::REQUIRED_ENABLE) required  lay-verify="required" @endif @if(isset($model) && $inlineField->is_edit == \App\Model\Admin\EntityField::EDIT_DISABLE) disabled @endif>
-                                                        @foreach(App\Repository\Admin\CategoryRepository::tree($entityModel->id) as $v)
+                                                        @foreach(App\Repository\Admin\CategoryRepository::tree($inlineField->category_entity_id > 0 ? $inlineField->category_entity_id : $entityModel->id) as $v)
                                                             @include('admin.category', [$v, 'fieldName' => $inlineField->name])
                                                         @endforeach
                                                     </select>
@@ -307,7 +315,7 @@
                                 <script>
                                     //实例化编辑器
                                     //建议使用工厂方法getEditor创建和引用编辑器实例，如果在某个闭包下引用该编辑器，直接调用UE.getEditor('editor')就能拿到相关的实例
-                                    var ue_{{ $field->name }} = UE.getEditor('editor-{{ $field->name }}', {autoFloatEnabled:false});
+                                    var ue_{{ $field->name }} = UE.getEditor('editor-{{ $field->name }}', {autoFloatEnabled:false, catchRemoteImageEnable: {{  config('light.neditor.catchRemoteImageEnable') ? "true" : "false" }}});
                                     ue_{{ $field->name }}.ready(function(){
                                         ue_{{ $field->name }}.focus();
                                         @if(isset($model) && $field->is_edit == \App\Model\Admin\EntityField::EDIT_DISABLE)
@@ -315,6 +323,42 @@
                                         @endif
                                     });
                                 </script>
+                                @break
+                            @case('jsonEditor')
+                                @if(!isset($jsoneditor_init))
+                                    @php
+                                        $jsoneditor_init = true
+                                    @endphp
+
+                                    <link href="https://cdn.jsdelivr.net/npm/jsoneditor@9.7.4/dist/jsoneditor.min.css" rel="stylesheet" type="text/css">
+                                    <script type="text/javascript" charset="utf-8" src="https://cdn.jsdelivr.net/npm/jsoneditor@9.7.4/dist/jsoneditor.min.js"></script>
+                                @endif
+                                <div class="layui-form-item">
+                                    <label class="layui-form-label">{{ $field->form_name }}</label>
+                                    <div class="layui-input-block">
+                                        <div id="jsoneditor-{{ $field->name }}" style="width: 100%; height: 400px;"></div>
+                                        <input type="hidden" name="{{ $field->name }}" id="input-jsoneditor-{{ $field->name }}" value="{{ $model->{$field->name} ?? $field->form_default_value }}">
+                                    </div>
+                                </div>
+                                    <script>
+                                        // create the editor
+                                        var editor = new JSONEditor(
+                                            document.getElementById('jsoneditor-{{ $field->name }}'),
+                                            {
+                                                @if(isset($model) && $field->is_edit == \App\Model\Admin\EntityField::EDIT_DISABLE)
+                                                mode: 'view',
+                                                modes: ['view', 'preview'],
+                                                @else
+                                                mode: 'tree',
+                                                modes: ['code', 'form', 'text', 'tree', 'view', 'preview'],
+                                                @endif
+                                                onChangeText: function (jsonString) {
+                                                    document.getElementById('input-jsoneditor-{{ $field->name }}').value = jsonString;
+                                                }
+                                            }
+                                        );
+                                        editor.set({!! $model->{$field->name} ?? $field->form_default_value !!});
+                                    </script>
                                 @break
                             @case('password')
                                 <div class="layui-form-item">
@@ -515,7 +559,7 @@
                                     <label class="layui-form-label">{{ $field->form_name }}</label>
                                     <div class="layui-input-block" style="width: 400px;z-index: {{99999 - ($field->order + $field->id)}}">
                                         <select name="{{ $field->name }}" @if($field->is_required == \App\Model\Admin\EntityField::REQUIRED_ENABLE) required  lay-verify="required" @endif @if(isset($model) && $field->is_edit == \App\Model\Admin\EntityField::EDIT_DISABLE) disabled @endif>
-                                            @foreach(App\Repository\Admin\CategoryRepository::tree($entityModel->id) as $v)
+                                            @foreach(App\Repository\Admin\CategoryRepository::tree($field->category_entity_id > 0 ? $field->category_entity_id : $entityModel->id) as $v)
                                                 @include('admin.category', [$v, 'fieldName' => $field->name])
                                             @endforeach
                                         </select>
@@ -682,6 +726,9 @@
 
                         @endswitch
                     @endforeach
+                    @foreach($viewData->getIncludeTemplate() as $template)
+                        @include($template)
+                    @endforeach
                 <div class="layui-form-item">
                     <div class="layui-input-block">
                         <button class="layui-btn" lay-submit lay-filter="formAdminUser" id="submitBtn">提交</button>
@@ -705,11 +752,19 @@
         form.on('submit(formAdminUser)', function(data){
             window.onbeforeunload = null;
             window.form_submit = $('#submitBtn');
-            form_submit.prop('disabled', true);
+            var originBtnText = form_submit.text();
+
             $.ajax({
                 url: data.form.action,
                 data: data.field,
+                beforeSend: function () {
+                    form_submit.text("处理中...");
+                    form_submit.prop('disabled', true);
+                    layer.load(2);
+                },
                 success: function (result) {
+                    form_submit.text(originBtnText);
+                    layer.closeAll('loading');
                     if (result.code !== 0) {
                         form_submit.prop('disabled', false);
                         layer.msg(result.msg, {shift: 6});
@@ -723,7 +778,13 @@
                             location.href = result.redirect;
                         }
                     });
-                }
+                },
+                error: function () {
+                    form_submit.prop('disabled', false);
+                    form_submit.text(originBtnText);
+                    layer.closeAll('loading');
+                    layer.msg('请求失败，请重试', {shift: 6});
+                },
             });
 
             return false;

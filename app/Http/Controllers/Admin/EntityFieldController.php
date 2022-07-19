@@ -25,7 +25,8 @@ class EntityFieldController extends Controller
     protected $formNames = [
         'name', 'type', 'comment', 'form_name', 'form_type', 'is_show', 'is_edit', 'is_required',
         'form_comment', 'entity_id', 'field_length', 'field_total', 'field_scale', 'order', 'form_params',
-        'default_value', 'is_show_inline', 'form_default_value'
+        'default_value', 'is_show_inline', 'form_default_value', 'is_list_display', 'list_sort',
+        'is_enable_search', 'search_type', 'show_type', 'category_entity_id'
     ];
 
     public function __construct()
@@ -88,6 +89,8 @@ class EntityFieldController extends Controller
             $data['is_edit'] = $data['is_edit'] ?? EntityField::EDIT_DISABLE;
             $data['is_required'] = $data['is_required'] ?? EntityField::REQUIRED_DISABLE;
             $data['is_show_inline'] = $data['is_show_inline'] ?? EntityField::SHOW_NOT_INLINE;
+            $data['is_list_display'] = $data['is_list_display'] ?? EntityField::SHOW_NOT_LIST;
+            $data['is_enable_search'] = $data['is_enable_search'] ?? EntityField::SEARCH_DISABLE;
             $modifyDB = $request->post('is_modify_db');
 
             $table = EntityRepository::find($data['entity_id']);
@@ -203,8 +206,11 @@ class EntityFieldController extends Controller
         $data['is_edit'] = $data['is_edit'] ?? EntityField::EDIT_DISABLE;
         $data['is_required'] = $data['is_required'] ?? EntityField::REQUIRED_DISABLE;
         $data['is_show_inline'] = $data['is_show_inline'] ?? EntityField::SHOW_NOT_INLINE;
+        $data['is_list_display'] = $data['is_list_display'] ?? EntityField::SHOW_NOT_LIST;
+        $data['is_enable_search'] = $data['is_enable_search'] ?? EntityField::SEARCH_DISABLE;
         // 一个模型只能有一个 inputTags 表单类型
-        if (EntityFieldRepository::formTypeBeUnique($data['form_type']) && EntityFieldRepository::getInputTagsField($data['entity_id'])) {
+        if (EntityFieldRepository::formTypeBeUnique($data['form_type']) &&
+            EntityFieldRepository::getInputTagsField($data['entity_id'])) {
             return [
                 'code' => 4,
                 'msg' => '编辑失败：一个模型只能有一个标签输入框表单类型',
@@ -275,7 +281,9 @@ class EntityFieldController extends Controller
         try {
             $entityField = EntityField::query()->findOrFail($id);
 
-            $data = $request->only(['is_show', 'is_edit', 'is_required', 'order', 'is_show_inline']);
+            $data = $request->only(
+                ['is_show', 'is_edit', 'is_required', 'order', 'is_show_inline', 'is_list_display', 'list_sort']
+            );
             foreach ($data as $key => $value) {
                 $entityField->$key = $value;
             }

@@ -67,22 +67,22 @@ class EntityFieldRepository
 
     public static function getFields($entityId)
     {
-        return  EntityField::query()->select('name')->where('entity_id', $entityId)->get()
+        return  EntityField::query()->select('name')->where('entity_id', $entityId)
             ->pluck('name')->toArray();
     }
 
     public static function getSaveFields($entityId)
     {
         return  EntityField::query()->select('name')->where('entity_id', $entityId)
-            ->whereNotIn('form_type', ['inputTags'])->get()->pluck('name')->toArray();
+            ->whereNotIn('form_type', ['inputTags'])->pluck('name')->toArray();
     }
 
     public static function getUpdateFields($entityId)
     {
-        return  EntityField::query()->select('name')->where('entity_id', $entityId)
+        return  EntityField::query()->select('name', 'form_type')->where('entity_id', $entityId)
             ->where('is_edit', EntityField::EDIT_ENABLE)
             ->whereNotIn('form_type', ['inputTags'])
-            ->get()->pluck('form_type', 'name')->toArray();
+            ->pluck('form_type', 'name')->toArray();
     }
 
     public static function getInputTagsField($entityId)
@@ -95,5 +95,75 @@ class EntityFieldRepository
     public static function formTypeBeUnique($formType)
     {
         return in_array($formType, ['inputTags'], true);
+    }
+
+    /**
+     * 获取指定字段的枚举值，展示 select 表单用
+     *
+     * @param int $entityId 模型ID
+     * @param string $fieldName 字段名
+     * @return array
+     */
+    public static function formEnums(int $entityId, string $fieldName): array
+    {
+        $field = EntityField::query()
+            ->where('entity_id', $entityId)
+            ->where('name', $fieldName)
+            ->first();
+        if (!$field) {
+            throw new \InvalidArgumentException('字段不存在：{$fieldName}');
+        }
+        $fieldArr = parseEntityFieldParams($field->form_params);
+        $enums = [];
+        foreach ($fieldArr as $v) {
+            $enums[$v[0]] = $v[1];
+        }
+        return $enums;
+    }
+
+    /**
+     * 获取列表中展示字段
+     *
+     * @param int $entityId 实体ID
+     * @return array
+     */
+    public static function listDisplayFields(int $entityId): array
+    {
+        return  EntityField::query()
+            ->select('name', 'form_name')
+            ->where('entity_id', $entityId)
+            ->where('is_list_display', EntityField::SHOW_LIST)
+            ->orderBy('list_sort')
+            ->orderBy('id')
+            ->pluck('form_name', 'name')->toArray();
+    }
+
+    /**
+     * 获取指定模型的搜索项配置
+     *
+     * @param int $entityId
+     * @return array
+     */
+    public static function searchableFields(int $entityId): array
+    {
+        $searchField = [];
+        EntityField::query()
+            ->where('entity_id', $entityId)
+            ->where('is_enable_search', EntityField::SEARCH_ENABLE)
+            ->orderBy('list_sort')
+            ->get()
+            ->each(function ($item) use (&$searchField, $entityId) {
+                $searchField[$item->name] = [
+                    'showType' => $item->show_type,
+                    'searchType' => $item->search_type,
+                    'title' => $item->form_name,
+                ];
+                if ($item->show_type === 'select') {
+                    $searchField[$item->name]['enums'] = $item->form_type === 'reference_category' ?
+                        CategoryRepository::idMapNameArr($entityId) :
+                        array_column(parseEntityFieldParams($item->form_params), 1, 0);
+                }
+            });
+        return $searchField;
     }
 }

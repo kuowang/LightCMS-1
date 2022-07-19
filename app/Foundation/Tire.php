@@ -106,8 +106,8 @@ class Tire
     /**
      * 单字符转换编码
      *
-     * @param $utf8_str
-     * @return string
+     * @param string $utf8_str
+     * @return int
      */
     public function utf8TransformAscii($utf8_str)
     {
@@ -125,7 +125,7 @@ class Tire
     /**
      * 编码转单字符
      *
-     * @param $ascii
+     * @param string $ascii
      * @return string
      */
     public function asciiTransformUtf8($ascii)

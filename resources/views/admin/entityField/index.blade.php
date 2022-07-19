@@ -54,6 +54,13 @@
     <%# } %>
     >
 </script>
+<script type="text/html" id="isShowList">
+    <input data-id="<% d.id %>" type="checkbox" name="is_list_display" lay-skin="switch" lay-text="是|否"
+    <%# if (d.is_list_display == 1) { %>
+    checked
+    <%# } %>
+    >
+</script>
 
 @section('js')
     <script>
@@ -75,7 +82,7 @@
                 url: '{{ route('admin::entityField.listUpdate', ['id' => '__replace_id']) }}'.replace('__replace_id', obj.data.id),
                 method: 'put',
                 dataType: 'json',
-                data: {order: obj.value},
+                data: {[obj.field]: obj.value},
                 success: function (result) {
                     if (result.code !== 0) {
                         layer.msg(result.msg, {shift: 3});
@@ -90,7 +97,8 @@
             var event = obj.event, tr = obj.tr;
             var maps = {
                 showEvent: "is_show",
-                showInlineEvent: "is_show_inline"
+                showInlineEvent: "is_show_inline",
+                showListEvent: "is_list_display"
             };
 
             var key = maps[event];
